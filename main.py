@@ -1,12 +1,19 @@
+import json
 import sqlite3 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
+
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 
 
 # Setup
 # create a file in the same directory called hci.db
 # run init_db() function below
 # run seed_db function below
+
+
 
 
 
@@ -131,22 +138,72 @@ def rank_answers(student_question,  possible_answers):
     return ranked_answers
 
 # Student's question
-print("Question in the context of:")
-print("1. logbook")
-print("2. schoolId")
-print("3. exam timetable")
-student_question = input("your question: ") 
+def interactive():
+    print("Question in the context of:")
+    print("1. logbook")
+    print("2. schoolId")
+    print("3. exam timetable")
+    student_question = input("your question: ") 
 
-possible_answers = query_database(preprocess_text(student_question))
-print(possible_answers)
+    possible_answers = query_database(preprocess_text(student_question))
+    print(possible_answers)
 
 
-# # Step 4: Rank answers by relevance
-ranked_answers = rank_answers(student_question,  possible_answers)
+    # # Step 4: Rank answers by relevance
+    ranked_answers = rank_answers(student_question,  possible_answers)
 
-# # Present the most relevant answer to the student
-if ranked_answers:
-    most_relevant_answer = ranked_answers[0]
-    print("Most relevant answer:", {"question":student_question,"answer":most_relevant_answer[2]})
-else:
-    print("No relevant answer found.")
+    # # Present the most relevant answer to the student
+    if ranked_answers:
+        most_relevant_answer = ranked_answers[0]
+        print("Most relevant answer:", {"question":student_question,"answer":most_relevant_answer[2]})
+    else:
+        print("No relevant answer found.")
+
+
+def query(question):
+        
+    possible_answers = query_database(preprocess_text(question))
+    print(possible_answers)
+
+
+    # # Step 4: Rank answers by relevance
+    ranked_answers = rank_answers(question,  possible_answers)
+
+    # # Present the most relevant answer to the student
+    if ranked_answers:
+        most_relevant_answer = ranked_answers[0]
+        return {"question":question,"answer":most_relevant_answer[2]}
+    else:
+        return {"question":question, "answer":"No relevant answer found."}
+
+
+class KnowledgeServer(BaseHTTPRequestHandler):
+    # Override the do_GET method to handle GET requests
+    def do_POST(self):
+        # Set the response status code
+        self.send_response(200)
+        # Set the response headers
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        post_data = json.loads(post_data.decode('utf-8'))
+
+        # Extract the recognized text from the JSON data
+        recognized_text = post_data.get("question", "")
+        
+        response = query(recognized_text)  # Implement your logic here
+
+        # Send the response
+        self.wfile.write(json.dumps(response).encode('utf-8'))
+
+def run_server(port=3000):
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, KnowledgeServer)
+    print(f"Starting the server on port {port}")
+    httpd.serve_forever()
+
+# # Run the HTTP server
+if __name__ == '__main__':
+    run_server()

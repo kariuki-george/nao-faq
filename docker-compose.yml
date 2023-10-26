@@ -1,0 +1,22 @@
+version: "3"
+
+networks:
+  traefik:
+    external: true
+
+services:
+  hci:
+    container_name: hci
+    image: hci
+    ports:
+      - "30000:3000"
+    labels:
+      - traefik.enable=true
+      ## HTTP Routers
+      - traefik.http.routers.hci.entrypoints=websecure
+      - traefik.http.routers.hci.rule=Host(`hci.p.kariukigeorge.me`)
+      - traefik.http.routers.hci.tls.certresolver=lets-encrypt
+      - traefik.http.services.hci.loadbalancer.server.port=3000
+
+    networks:
+      - traefik
